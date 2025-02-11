@@ -30,7 +30,7 @@ app.post('/webhook', validateSignature, async (req, res) => {
       process.env.FLOWISE_ENDPOINT,
       {
         question: req.body.message,
-        history: [],
+        chatId: req.body.groupId, // Use Kommunicate groupId as chatId for thread continuity
         overrideConfig: {
           returnSourceDocuments: true
         }
@@ -42,6 +42,12 @@ app.post('/webhook', validateSignature, async (req, res) => {
         }
       }
     );
+
+    // Log chat thread information
+    console.log('Chat thread info:', {
+      chatId: req.body.groupId,
+      messageCount: flowiseResponse.data.history?.length || 0
+    });
 
     console.log('Flowise response received:', flowiseResponse.data);
 
