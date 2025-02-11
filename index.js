@@ -6,6 +6,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(express.static('.')); // Serve static files from current directory
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
