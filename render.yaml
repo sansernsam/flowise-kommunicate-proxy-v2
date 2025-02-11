@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: kommunicate-flowise-proxy
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: FLOWISE_ENDPOINT
+        value: https://cosdentsmiledesignai.onrender.com/api/v1/prediction/9eafff57-9b80-4bc9-a572-9e00166e758b
+      - key: FLOWISE_API_KEY
+        value: KJ36Yg2IT8VoHSCTT_rAquKKh5TSX4VE24XI_I_W43E
+      - key: PORT
+        value: 10000
+    autoDeploy: true
