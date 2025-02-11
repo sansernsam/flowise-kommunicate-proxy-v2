@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: kommunicate-flowise-proxy
+    name: flowise-kommunicate-proxy-v2
     runtime: node
     plan: free
     buildCommand: npm install
