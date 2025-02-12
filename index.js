@@ -6,7 +6,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static('.')); // Serve static files from current directory
+app.use(express.static('.'));
 
 // Basic health check endpoint
 app.get('/', (req, res) => {
@@ -41,33 +41,41 @@ app.post('/webhook', validateSignature, async (req, res) => {
     }
 
     try {
-      // Transform Kommunicate payload to Flowise format
+      // Prepare simple request payload
+      const payload = {
+        question: req.body.message
+      };
+
+      console.log('Sending request to Flowise:', {
+        endpoint: process.env.FLOWISE_ENDPOINT,
+        payload,
+        proxy: process.env.HTTPS_PROXY
+      });
+
+      // Create an https agent with proxy settings if HTTPS_PROXY is set
+      const httpsAgent = process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined;
+
+      // Send request to Flowise API with correct API key
       const flowiseResponse = await axios.post(
-        process.env.FLOWISE_ENDPOINT,
-        {
-          question: req.body.message,
-          chatId: req.body.groupId,
-          overrideConfig: {
-            returnSourceDocuments: true
-          }
-        },
+        `${process.env.FLOWISE_ENDPOINT}?apiKey=KJ36Yg2lT8VoHSCTT_rAquKKh5TSx4vE24xI_l_W43E`,
+        payload,
         {
           headers: {
-            Authorization: `Bearer ${process.env.FLOWISE_API_KEY}`,
             'Content-Type': 'application/json'
-          }
+          },
+          httpsAgent: httpsAgent
         }
       );
 
-      console.log('Flowise response received:', flowiseResponse.data);
+      console.log('Flowise response:', flowiseResponse.data);
 
       // Format response for Kommunicate
       const response = [{
         message: flowiseResponse.data.text || "I understand your message, but I'm having trouble generating a response."
       }];
 
-      // Add suggested replies if available
-      if (flowiseResponse.data.sourceDocuments && flowiseResponse.data.sourceDocuments.length > 0) {
+      // Add source documents as suggested actions if available
+      if (flowiseResponse.data.sourceDocuments?.length > 0) {
         response[0].metadata = {
           contentType: "300",
           templateId: "6",
@@ -77,6 +85,8 @@ app.post('/webhook', validateSignature, async (req, res) => {
           }))
         };
       }
+
+      return res.json(response);
 
       return res.json(response);
     } catch (error) {
