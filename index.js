@@ -48,17 +48,35 @@ app.post('/webhook', validateSignature, async (req, res) => {
 
       console.log('Sending request to Flowise:', {
         endpoint: process.env.FLOWISE_ENDPOINT,
+<<<<<<< HEAD
         payload
       });
 
       // Send request to Flowise API with correct API key
       const flowiseResponse = await axios.post(
         process.env.FLOWISE_ENDPOINT,
+=======
+        payload,
+        proxy: process.env.HTTPS_PROXY
+      });
+
+      // Create an https agent with proxy settings if HTTPS_PROXY is set
+      const httpsAgent = process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined;
+
+      // Send request to Flowise API with correct API key
+      const flowiseResponse = await axios.post(
+        `${process.env.FLOWISE_ENDPOINT}?apiKey=KJ36Yg2lT8VoHSCTT_rAquKKh5TSx4vE24xI_l_W43E`,
+>>>>>>> 0fc12ae5d4746337512913ea3eaad81964e15736
         payload,
         {
           headers: {
             'Content-Type': 'application/json'
+<<<<<<< HEAD
           }
+=======
+          },
+          httpsAgent: httpsAgent
+>>>>>>> 0fc12ae5d4746337512913ea3eaad81964e15736
         }
       );
 
@@ -82,6 +100,11 @@ app.post('/webhook', validateSignature, async (req, res) => {
       }
 
       return res.json(response);
+<<<<<<< HEAD
+=======
+
+      return res.json(response);
+>>>>>>> 0fc12ae5d4746337512913ea3eaad81964e15736
     } catch (error) {
       console.error('Flowise API Error:', error);
       
