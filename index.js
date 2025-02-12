@@ -21,17 +21,31 @@ const validateSignature = (req, res, next) => {
 
 app.post('/webhook', validateSignature, async (req, res) => {
   try {
-    console.log('Received webhook request:', {
-      message: req.body.message,
-      groupId: req.body.groupId
-    });
+    console.log('Received webhook request:', req.body);
+
+    // Handle welcome event
+    if (req.body.eventName === 'WELCOME') {
+      return res.json([{
+        message: "Hello! I'm your AI assistant. How can I help you today?"
+      }]);
+    }
+
+    // Handle media events
+    if (req.body.eventName === 'KOMMUNICATE_MEDIA_EVENT') {
+      const attachments = req.body.metadata?.KM_CHAT_CONTEXT?.attachments;
+      if (attachments && attachments.length > 0) {
+        return res.json([{
+          message: "I've received your attachment, but I can only process text messages at the moment."
+        }]);
+      }
+    }
 
     // Transform Kommunicate payload to Flowise format
     const flowiseResponse = await axios.post(
       process.env.FLOWISE_ENDPOINT,
       {
         question: req.body.message,
-        chatId: req.body.groupId, // Use Kommunicate groupId as chatId for thread continuity
+        chatId: req.body.groupId,
         overrideConfig: {
           returnSourceDocuments: true
         }
@@ -44,26 +58,35 @@ app.post('/webhook', validateSignature, async (req, res) => {
       }
     );
 
-    // Log chat thread information
-    console.log('Chat thread info:', {
-      chatId: req.body.groupId,
-      messageCount: flowiseResponse.data.history?.length || 0
-    });
-
     console.log('Flowise response received:', flowiseResponse.data);
+
+    // Check if we need to handoff to human agent
+    if (flowiseResponse.data.text.toLowerCase().includes("i can't help with that") || 
+        flowiseResponse.data.text.toLowerCase().includes("i don't understand")) {
+      return res.json([{
+        message: "Let me connect you with a human agent who can better assist you.",
+        metadata: {
+          KM_ASSIGN_TO: "" // Empty string will use conversation rules
+        }
+      }]);
+    }
 
     // Format response for Kommunicate
     const response = [{
-      message: flowiseResponse.data.text,
-      metadata: {
+      message: flowiseResponse.data.text
+    }];
+
+    // Add suggested replies if available
+    if (flowiseResponse.data.sourceDocuments && flowiseResponse.data.sourceDocuments.length > 0) {
+      response[0].metadata = {
         contentType: "300",
         templateId: "6",
-        payload: JSON.stringify({
-          sourceDocuments: flowiseResponse.data.sourceDocuments,
-          sessionId: req.body.groupId
-        })
-      }
-    }];
+        payload: flowiseResponse.data.sourceDocuments.map(doc => ({
+          title: "Learn More",
+          message: doc.pageContent.substring(0, 100) + "..."
+        }))
+      };
+    }
     
     console.log('Sending response to Kommunicate:', response);
     res.json(response);
