@@ -40,52 +40,90 @@ app.post('/webhook', validateSignature, async (req, res) => {
       }
     }
 
-    // Transform Kommunicate payload to Flowise format
-    const flowiseResponse = await axios.post(
-      process.env.FLOWISE_ENDPOINT,
-      {
-        question: req.body.message,
-        chatId: req.body.groupId,
-        overrideConfig: {
-          returnSourceDocuments: true
+    try {
+      // Transform Kommunicate payload to Flowise format
+      const flowiseResponse = await axios.post(
+        process.env.FLOWISE_ENDPOINT,
+        {
+          question: req.body.message,
+          chatId: req.body.groupId,
+          overrideConfig: {
+            returnSourceDocuments: true
+          }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.FLOWISE_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
         }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.FLOWISE_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
+      );
+
+      console.log('Flowise response received:', flowiseResponse.data);
+
+      // Format response for Kommunicate
+      const response = [{
+        message: flowiseResponse.data.text || "I understand your message, but I'm having trouble generating a response."
+      }];
+
+      // Add suggested replies if available
+      if (flowiseResponse.data.sourceDocuments && flowiseResponse.data.sourceDocuments.length > 0) {
+        response[0].metadata = {
+          contentType: "300",
+          templateId: "6",
+          payload: flowiseResponse.data.sourceDocuments.map(doc => ({
+            title: "Learn More",
+            message: doc.pageContent.substring(0, 100) + "..."
+          }))
+        };
       }
-    );
 
-    console.log('Flowise response received:', flowiseResponse.data);
+      return res.json(response);
+    } catch (error) {
+      console.error('Flowise API Error:', error);
+      
+      // Handle different error scenarios
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return res.json([{
+          message: "I'm currently experiencing authentication issues. Let me connect you with a human agent.",
+          metadata: {
+            KM_ASSIGN_TO: ""
+          }
+        }]);
+      }
+      
+      if (error.response?.status === 500) {
+        return res.json([{
+          message: "I'm having trouble processing your request. Would you like to try rephrasing your question?",
+          metadata: {
+            contentType: "300",
+            templateId: "6",
+            payload: [{
+              title: "Connect with Agent",
+              message: "Please connect me with a human agent"
+            }, {
+              title: "Try Again",
+              message: "Let me try asking differently"
+            }]
+          }
+        }]);
+      }
 
-    // Check if we need to handoff to human agent
-    if (flowiseResponse.data.text.toLowerCase().includes("i can't help with that") || 
-        flowiseResponse.data.text.toLowerCase().includes("i don't understand")) {
+      // Default error response with suggested actions
       return res.json([{
-        message: "Let me connect you with a human agent who can better assist you.",
+        message: "I'm having technical difficulties at the moment. How would you like to proceed?",
         metadata: {
-          KM_ASSIGN_TO: "" // Empty string will use conversation rules
+          contentType: "300",
+          templateId: "6",
+          payload: [{
+            title: "Talk to Agent",
+            message: "Connect me with an agent please"
+          }, {
+            title: "Try Later",
+            message: "I'll try again later"
+          }]
         }
       }]);
-    }
-
-    // Format response for Kommunicate
-    const response = [{
-      message: flowiseResponse.data.text
-    }];
-
-    // Add suggested replies if available
-    if (flowiseResponse.data.sourceDocuments && flowiseResponse.data.sourceDocuments.length > 0) {
-      response[0].metadata = {
-        contentType: "300",
-        templateId: "6",
-        payload: flowiseResponse.data.sourceDocuments.map(doc => ({
-          title: "Learn More",
-          message: doc.pageContent.substring(0, 100) + "..."
-        }))
-      };
     }
     
     console.log('Sending response to Kommunicate:', response);
