@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: flowise-kommunicate-proxy-v2
+    env: node
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: FLOWISE_ENDPOINT
+        value: https://cosdentsmiledesignai.onrender.com/api/v1/prediction/9eafff57-9b80-4bc9-a572-9e00166e758b
+      - key: FLOWISE_API_KEY
+        value: KJ36Yg2lT8VoHSCTT_rAquKKh5TSx4vE24xI_l_W43E
+    runtime: nodejs
